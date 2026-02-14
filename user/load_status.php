@@ -1,26 +1,35 @@
 <?php
-include("../config/db.php");
+include "../admin/db.php";
 
-$result = $conn->query("SELECT COUNT(*) as total FROM orders 
-                        WHERE status='Pending' OR status='Preparing'");
+$sql = "SELECT COUNT(*) as total FROM orders WHERE status='Pending' OR status='Preparing'";
+$result = mysqli_query($conn,$sql);
+$row = mysqli_fetch_assoc($result);
 
-$row = $result->fetch_assoc();
-$count = $row['total'];
+$total_orders = $row['total'];
 
-$status = "Low";
-$wait = 10;
-
-if($count >=3 && $count <=5){
-    $status = "Medium";
-    $wait = 20;
-}
-elseif($count >=6){
+if($total_orders >= 5){
     $status = "High";
-    $wait = 30;
 }
+elseif($total_orders >= 3){
+    $status = "Medium";
+}
+else{
+    $status = "Low";
+}
+
+// waiting time calculation
+$waiting_time = $total_orders * 5;  // 1 order = 5 mins approx
 
 echo json_encode([
     "status"=>$status,
-    "waiting_time"=>$wait
+    "waiting_time"=>$waiting_time
+]);
+?>
+<?php
+header('Content-Type: application/json');
+
+echo json_encode([
+ "status"=>"High",
+ "waiting_time"=>20
 ]);
 ?>
