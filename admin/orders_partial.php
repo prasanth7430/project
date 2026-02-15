@@ -1,39 +1,36 @@
 <?php
+session_start();
+if(!isset($_SESSION['admin'])){
+  http_response_code(401);
+  exit;
+}
+
 include("../config/db.php");
 
 $result = $conn->query("SELECT * FROM orders ORDER BY id DESC");
 
-while($row=$result->fetch_assoc()){
+while($row = $result->fetch_assoc()){
+  $statusClass = strtolower($row['status']);
 ?>
-<div class="col-md-4 mb-4">
-  <div class="card shadow-sm p-3">
+  <div class="order-glass">
+    <div class="order-head">
+      <span>Order #<?= htmlspecialchars($row['id']) ?></span>
+      <span class="status <?= $statusClass ?>">
+        <?= htmlspecialchars($row['status']) ?>
+      </span>
+    </div>
 
-    <h6>Order #<?= $row['id'] ?></h6>
-    <p><strong>Table:</strong> <?= $row['table_no'] ?? '-' ?></p>
-    <p><strong>Items:</strong> <?= $row['items'] ?></p>
-    <p><strong>Total:</strong> ₹<?= $row['total_price'] ?></p>
+    <p><strong>Table:</strong> <?= htmlspecialchars($row['table_no'] ?? '-') ?></p>
+    <p><strong>Items:</strong> <?= htmlspecialchars($row['items']) ?></p>
+    <p class="price">₹<?= htmlspecialchars($row['total_price']) ?></p>
 
-    <!-- Status Badge -->
-    <span class="badge 
-      <?php 
-        if($row['status']=="Pending") echo "bg-warning";
-        elseif($row['status']=="Preparing") echo "bg-primary";
-        elseif($row['status']=="Completed") echo "bg-success";
-        else echo "bg-secondary";
-      ?>">
-      <?= $row['status'] ?>
-    </span>
-
-    <!-- Status Dropdown -->
-    <form method="POST" action="update.php" class="mt-3">
-      <input type="hidden" name="id" value="<?= $row['id'] ?>">
-      <select name="status" class="form-select" onchange="this.form.submit()">
+    <form method="POST" action="update.php">
+      <input type="hidden" name="id" value="<?= htmlspecialchars($row['id']) ?>">
+      <select name="status" onchange="this.form.submit()">
         <option <?= $row['status']=="Pending"?'selected':'' ?>>Pending</option>
         <option <?= $row['status']=="Preparing"?'selected':'' ?>>Preparing</option>
         <option <?= $row['status']=="Completed"?'selected':'' ?>>Completed</option>
       </select>
     </form>
-
   </div>
-</div>
 <?php } ?>
