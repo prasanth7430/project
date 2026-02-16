@@ -230,3 +230,26 @@ select{
 .premium-toast.show{
   right:30px;
 }
+
+.assist-panel{
+  background: rgba(255,255,255,0.05);
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.assist-item{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:linear-gradient(90deg,#ff3c00,#ff6a00);
+  padding:10px 14px;
+  border-radius:10px;
+  margin-bottom:10px;
+  font-weight:600;
+}
+
+.assist-item small{
+  opacity:0.8;
+}

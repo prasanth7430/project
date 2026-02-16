@@ -1,46 +1,62 @@
 <?php
+// 🔧 Ensure session cookie works across admin pages
+ini_set('session.cookie_path', '/');
 session_start();
 
-if(isset($_POST['login'])){
-  $user = $_POST['username'];
-  $pass = $_POST['password'];
+include("../config/db.php");
 
-  if($user=="admin" && $pass=="1234"){
-    $_SESSION['admin']=true;
-    header("Location: dashboard.php");
-  }else{
-    $error="Invalid Login";
+$error = "";
+
+if($_SERVER['REQUEST_METHOD'] === 'POST'){
+  $username = $_POST['username'] ?? '';
+  $password = $_POST['password'] ?? '';
+
+  // DB uses md5
+  $password = md5($password);
+
+  $stmt = $conn->prepare("SELECT id, role FROM users WHERE username=? AND password=?");
+  $stmt->bind_param("ss", $username, $password);
+  $stmt->execute();
+  $res = $stmt->get_result();
+
+  if($res && $res->num_rows === 1){
+    $user = $res->fetch_assoc();
+
+    // ✅ Set session
+    $_SESSION['admin'] = (int)$user['id'];
+    $_SESSION['role']  = trim(strtolower($user['role'])); // normalize
+
+    // 🔁 Redirect by role
+    if($_SESSION['role'] === 'admin'){
+      header("Location: dashboard.php");
+    } elseif($_SESSION['role'] === 'kitchen'){
+      header("Location: kitchen.php");
+    } else {
+      $error = "Invalid role configuration";
+    }
+    exit;
+  } else {
+    $error = "Invalid username or password";
   }
 }
 ?>
-
 <!DOCTYPE html>
 <html>
 <head>
-<title>Admin Login</title>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body{font-family:Arial;background:#f2f2f2}
-.card{background:#fff;margin:100px auto;padding:20px;width:300px;border-radius:12px}
-input,button{width:100%;padding:10px;margin-top:10px}
-button{background:#333;color:#fff;border:none}
-.error{color:red;text-align:center}
-</style>
+<title>Login</title>
+<link rel="stylesheet" href="admin_style.css">
 </head>
 <body>
-
-<div class="card">
-<h3>🔐 Admin Login</h3>
-
-<form method="post">
-<input type="text" name="username" placeholder="Username" required>
-<input type="password" name="password" placeholder="Password" required>
-<button name="login">Login</button>
-</form>
-
-<?php if(isset($error)) echo "<p class='error'>$error</p>"; ?>
-</div>
-
-
+  <div class="login-card">
+    <h2>Login</h2>
+    <?php if($error) echo "<p style='color:red'>$error</p>"; ?>
+    <form method="POST" autocomplete="off">
+      <input type="text" name="username" placeholder="Username" required>
+      <input type="password" name="password" placeholder="Password" required>
+      <button type="submit">Login</button>
+    </form>
+  </div>
 </body>
 </html>

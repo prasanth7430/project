@@ -78,42 +78,36 @@ function loadMenu(){
         <p>₹ ${item.price}</p>
 
         <div class="d-flex justify-content-center align-items-center gap-2 mt-2">
-          <button class="btn btn-sm btn-danger"
-            onclick="changeQty(${index},-1)">-</button>
-
+          <button class="btn btn-sm btn-danger" onclick="changeQty(${index},-1)">-</button>
           <span id="qty-${index}">0</span>
-
-          <button class="btn btn-sm btn-success"
-            onclick="changeQty(${index},1)">+</button>
+          <button class="btn btn-sm btn-success" onclick="changeQty(${index},1)">+</button>
         </div>
-
       </div>
-    </div>
-    `;
+    </div>`;
   });
 
   document.getElementById("menuItems").innerHTML = html;
 }
 
-
 function addToCart(item,price,prep){
   cart.push({item,price,prep});
   updateCartUI();
 }
+
 function updateCartUI(){
   document.getElementById("count").innerText = cart.length;
 
   let total = cart.reduce((s,c)=>s+c.price,0);
-
   document.getElementById("liveTotal").innerText = total;
   document.getElementById("drawerTotal").innerText = total;
 
   let html="";
   cart.forEach(c=>{
-    html += `<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-      <span>${c.item}</span>
-      <span>₹${c.price}</span>
-    </div>`;
+    html += `
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span>${c.item}</span>
+        <span>₹${c.price}</span>
+      </div>`;
   });
 
   document.getElementById("cartItems").innerHTML = html || "Cart Empty";
@@ -128,7 +122,7 @@ function closeCart(){
 }
 
 function placeOrder(){
-  if(cart.length==0){
+  if(cart.length === 0){
     alert("Cart empty");
     return;
   }
@@ -138,157 +132,110 @@ function placeOrder(){
   let prep_time = cart.reduce((s,c)=>s+c.prep,0);
 
   let form = new FormData();
-  form.append("table_no",tableNo);
-  form.append("items",items);
-  form.append("total",total);
-  form.append("prep_time",prep_time);
+  form.append("table_no", tableNo);
+  form.append("items", items);
+  form.append("total", total);
+  form.append("prep_time", prep_time);
 
-  fetch("place_order.php",{
-    method:"POST",
-    body:form
-  })
-  .then(res=>res.text())
-  .then(orderId=>{
-    if(orderId!="error"){
-      localStorage.setItem("order_id",orderId);
-      Swal.fire({
-  title: "Order Confirmed!",
-  html: `Total: ₹${total}<br>Table: ${tableNo}`,
-  icon: "success",
-  confirmButtonColor: "#ff5722"
-});
-
-      cart=[];
-      document.getElementById("count").innerText=0;
-      checkOrderStatus();
-    }
-  });
+  fetch("place_order.php", { method:"POST", body:form })
+    .then(res=>res.text())
+    .then(orderId=>{
+      if(orderId !== "error"){
+        localStorage.setItem("order_id", orderId);
+        Swal.fire({
+          title: "Order Confirmed!",
+          html: `Total: ₹${total}<br>Table: ${tableNo}`,
+          icon: "success",
+          confirmButtonColor: "#ff5722"
+        });
+        cart=[];
+        updateCartUI();
+        checkOrderStatus();
+      }
+    });
 }
 
+// 🔔 NEED ASSISTANCE (FIXED)
 function callAssistance(){
-  let form = new FormData();
-  form.append("table_no",tableNo);
-let msg = new SpeechSynthesisUtterance("Staff is on the way");
-speechSynthesis.speak(msg);
-sound.play();
-navigator.vibrate(200);
+  fetch("/restaurant_app/user/assistance.php?table=" + tableNo)
+    .then(res => res.text())
+    .then(() => {
+      // 🔊 Voice Alert (works after user interaction)
+      if ('speechSynthesis' in window) {
+        const msg = new SpeechSynthesisUtterance("Staff is on the way");
+        msg.lang = "en-IN";   // Indian English
+        msg.rate = 1;        // speed
+        msg.pitch = 1;       // pitch
+        window.speechSynthesis.cancel(); // stop any previous
+        window.speechSynthesis.speak(msg);
+      }
 
-  fetch("assistance.php",{
-    method:"POST",
-    body:form
-  })
-  .then(res=>res.text())
-  .then(msg=>{
-    if(msg=="success"){
-      alert("Staff coming 👍");
-    }
-  });
+      Swal.fire({
+        icon: 'success',
+        title: 'Assistance Requested!',
+        text: 'Staff is on the way 🚶‍♂️',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    })
+    .catch(() => {
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed',
+        text: 'Please try again',
+      });
+    });
 }
-
 function checkOrderStatus(){
   let id = localStorage.getItem("order_id");
   if(!id) return;
 
   fetch("order_status.php?id="+id)
-  .then(res=>res.text())
-  .then(status=>{
-    let box = document.getElementById("statusBox");
+    .then(res=>res.text())
+    .then(status=>{
+      let box = document.getElementById("statusBox");
 
-    if(status=="Pending"){
-      box.innerHTML="🕒 Order Received";
-    }
-    else if(status=="Preparing"){
-      box.innerHTML="👨‍🍳 Preparing";
-    }
-    else if(status=="Served"){
-      box.innerHTML="✅ Served";
-      localStorage.removeItem("order_id");
-    }
-  });
+      if(status=="Pending") box.innerHTML="🕒 Order Received";
+      else if(status=="Preparing") box.innerHTML="👨‍🍳 Preparing";
+      else if(status=="Served"){
+        box.innerHTML="✅ Served";
+        localStorage.removeItem("order_id");
+      }
+    });
 }
 
-loadMenu();
-setInterval(checkOrderStatus,5000);
-
-function checkLoad(){console.log("checking load...");
-
-
-  fetch("load_status.php")
-  .then(res=>res.json())
-  .then(data=>{
-    let msg="";
-
-    if(data.status=="High"){
-      msg = "🔴 High Demand. Waiting time: "+data.waiting_time+" mins";
-    }
-    else if(data.status=="Medium"){
-      msg = "🟡 Moderate orders. Waiting time: "+data.waiting_time+" mins";
-    }
-    else{
-      msg = "🟢 Kitchen Free. Waiting time: "+data.waiting_time+" mins";
-    }
-
-    document.getElementById("loadAlert").innerText = msg;
-  })
-  .catch(err=>console.log(err));
-}
-
-checkLoad();
-setInterval(checkLoad,5000);
-
-/* 🔍 SEARCH FUNCTION */
 function searchItem(){
   let input = document.getElementById("searchFood").value.toLowerCase();
-  let items = document.querySelectorAll(".glass-card");
-
-  items.forEach(card=>{
+  document.querySelectorAll(".glass-card").forEach((card,idx)=>{
     let title = card.querySelector("h5").innerText.toLowerCase();
     let parentCol = card.closest(".col-md-4");
-
-    if(title.includes(input)){
-      parentCol.style.display="block";
-      card.classList.remove("fade-hide");
-      card.classList.add("fade-show");
-    }else{
-      card.classList.remove("fade-show");
-      card.classList.add("fade-hide");
-      setTimeout(()=>{ parentCol.style.display="none"; },300);
-    }
+    parentCol.style.display = title.includes(input) ? "block" : "none";
   });
 }
-
 
 function filterCategory(cat){
-  let items = document.querySelectorAll(".glass-card");
-
-  items.forEach((card,index)=>{
+  document.querySelectorAll(".glass-card").forEach((card,idx)=>{
     let parentCol = card.closest(".col-md-4");
-
-    if(cat=="all" || menu[index].category==cat){
-      parentCol.style.display="block";
-    }else{
-      parentCol.style.display="none";
-    }
+    if(cat==="all" || menu[idx].category===cat) parentCol.style.display="block";
+    else parentCol.style.display="none";
   });
 }
-
 
 function changeQty(index,change){
   let qtySpan = document.getElementById("qty-"+index);
-  let qty = parseInt(qtySpan.innerText);
-
-  qty += change;
-
+  let qty = parseInt(qtySpan.innerText) + change;
   if(qty < 0) qty = 0;
-
   qtySpan.innerText = qty;
 
   if(change > 0){
-    addToCart(menu[index].name,menu[index].price,menu[index].prep);
+    addToCart(menu[index].name, menu[index].price, menu[index].prep);
   }
 }
-
 
 function toggleDark(){
   document.body.classList.toggle("dark-mode");
 }
+
+// 🔁 Init
+loadMenu();
+setInterval(checkOrderStatus, 5000);

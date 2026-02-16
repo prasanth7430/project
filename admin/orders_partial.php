@@ -4,7 +4,6 @@ if(!isset($_SESSION['admin'])){
   http_response_code(401);
   exit;
 }
-
 include("../config/db.php");
 
 $result = $conn->query("SELECT * FROM orders ORDER BY id DESC");
@@ -20,10 +19,11 @@ while($row = $result->fetch_assoc()){
       </span>
     </div>
 
-    <p><strong>Table:</strong> <?= htmlspecialchars($row['table_no'] ?? '-') ?></p>
+    <p><strong>Table:</strong> <?= htmlspecialchars($row['table_no']) ?></p>
     <p><strong>Items:</strong> <?= htmlspecialchars($row['items']) ?></p>
     <p class="price">₹<?= htmlspecialchars($row['total_price']) ?></p>
 
+    <!-- 🔄 Status Update -->
     <form method="POST" action="update.php">
       <input type="hidden" name="id" value="<?= htmlspecialchars($row['id']) ?>">
       <select name="status" onchange="this.form.submit()">
@@ -32,5 +32,15 @@ while($row = $result->fetch_assoc()){
         <option <?= $row['status']=="Completed"?'selected':'' ?>>Completed</option>
       </select>
     </form>
+
+    <!-- 🧾 Print Bill Button -->
+    <a href="bill.php?id=<?= htmlspecialchars($row['id']) ?>" 
+       target="_blank" 
+       style="display:block;margin-top:8px;text-decoration:none;">
+      <button type="button" class="btn btn-sm btn-outline-light w-100">
+        🧾 Print Bill
+      </button>
+    </a>
+
   </div>
 <?php } ?>
