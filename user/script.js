@@ -76,8 +76,7 @@ function loadMenu(){
         <img src="${item.image}" class="img-fluid mb-3">
         <h5>${item.name}</h5>
         <p>₹ ${item.price}</p>
-
-        <div class="d-flex justify-content-center align-items-center gap-2 mt-2">
+        <div class="d-flex justify-content-center gap-2 mt-2">
           <button class="btn btn-sm btn-danger" onclick="changeQty(${index},-1)">-</button>
           <span id="qty-${index}">0</span>
           <button class="btn btn-sm btn-success" onclick="changeQty(${index},1)">+</button>
@@ -85,21 +84,43 @@ function loadMenu(){
       </div>
     </div>`;
   });
-
   document.getElementById("menuItems").innerHTML = html;
 }
 
-function addToCart(item,price,prep){
-  cart.push({item,price,prep});
+function changeQty(index,change){
+  let qtySpan = document.getElementById("qty-"+index);
+  let qty = parseInt(qtySpan.innerText || "0") + change;
+  if(qty < 0) qty = 0;
+
+  if(change > 0){
+    cart.push({
+      item: menu[index].name,
+      price: Number(menu[index].price),
+      prep: Number(menu[index].prep)
+    });
+  } else {
+    let i = cart.findIndex(c => c.item === menu[index].name);
+    if(i > -1) cart.splice(i,1);
+  }
+
+  qtySpan.innerText = qty;
   updateCartUI();
 }
 
 function updateCartUI(){
   document.getElementById("count").innerText = cart.length;
 
-  let total = cart.reduce((s,c)=>s+c.price,0);
-  document.getElementById("liveTotal").innerText = total;
-  document.getElementById("drawerTotal").innerText = total;
+  let subtotal = cart.reduce((s,c)=> s + Number(c.price || 0), 0);
+  let gst = Math.round(subtotal * 0.05);
+  let service = Math.round(subtotal * 0.02);
+  let grand = subtotal + gst + service;
+
+  document.getElementById("liveTotal").innerText = grand;
+
+  document.getElementById("billSubtotal").innerText = subtotal;
+  document.getElementById("billGST").innerText = gst;
+  document.getElementById("billService").innerText = service;
+  document.getElementById("billGrand").innerText = grand;
 
   let html="";
   cart.forEach(c=>{
@@ -116,7 +137,6 @@ function updateCartUI(){
 function openCart(){
   document.getElementById("cartDrawer").classList.add("active");
 }
-
 function closeCart(){
   document.getElementById("cartDrawer").classList.remove("active");
 }
@@ -128,8 +148,11 @@ function placeOrder(){
   }
 
   let items = cart.map(c=>c.item).join(",");
-  let total = cart.reduce((s,c)=>s+c.price,0);
-  let prep_time = cart.reduce((s,c)=>s+c.prep,0);
+  let subtotal = cart.reduce((s,c)=> s + Number(c.price || 0), 0);
+  let gst = Math.round(subtotal * 0.05);
+  let service = Math.round(subtotal * 0.02);
+  let total = subtotal + gst + service;
+  let prep_time = cart.reduce((s,c)=> s + Number(c.prep || 0), 0);
 
   let form = new FormData();
   form.append("table_no", tableNo);
@@ -141,101 +164,22 @@ function placeOrder(){
     .then(res=>res.text())
     .then(orderId=>{
       if(orderId !== "error"){
-        localStorage.setItem("order_id", orderId);
         Swal.fire({
           title: "Order Confirmed!",
-          html: `Total: ₹${total}<br>Table: ${tableNo}`,
-          icon: "success",
-          confirmButtonColor: "#ff5722"
+          html: `Subtotal: ₹${subtotal}<br>GST: ₹${gst}<br>Service: ₹${service}<br><b>Total: ₹${total}</b>`,
+          icon: "success"
         });
         cart=[];
+        document.querySelectorAll("[id^='qty-']").forEach(e=>e.innerText=0);
         updateCartUI();
-        checkOrderStatus();
+      } else {
+        alert("Order failed ❌");
       }
     });
-}
-
-// 🔔 NEED ASSISTANCE (FIXED)
-function callAssistance(){
-  fetch("/restaurant_app/user/assistance.php?table=" + tableNo)
-    .then(res => res.text())
-    .then(() => {
-      // 🔊 Voice Alert (works after user interaction)
-      if ('speechSynthesis' in window) {
-        const msg = new SpeechSynthesisUtterance("Staff is on the way");
-        msg.lang = "en-IN";   // Indian English
-        msg.rate = 1;        // speed
-        msg.pitch = 1;       // pitch
-        window.speechSynthesis.cancel(); // stop any previous
-        window.speechSynthesis.speak(msg);
-      }
-
-      Swal.fire({
-        icon: 'success',
-        title: 'Assistance Requested!',
-        text: 'Staff is on the way 🚶‍♂️',
-        timer: 2000,
-        showConfirmButton: false
-      });
-    })
-    .catch(() => {
-      Swal.fire({
-        icon: 'error',
-        title: 'Failed',
-        text: 'Please try again',
-      });
-    });
-}
-function checkOrderStatus(){
-  let id = localStorage.getItem("order_id");
-  if(!id) return;
-
-  fetch("order_status.php?id="+id)
-    .then(res=>res.text())
-    .then(status=>{
-      let box = document.getElementById("statusBox");
-
-      if(status=="Pending") box.innerHTML="🕒 Order Received";
-      else if(status=="Preparing") box.innerHTML="👨‍🍳 Preparing";
-      else if(status=="Served"){
-        box.innerHTML="✅ Served";
-        localStorage.removeItem("order_id");
-      }
-    });
-}
-
-function searchItem(){
-  let input = document.getElementById("searchFood").value.toLowerCase();
-  document.querySelectorAll(".glass-card").forEach((card,idx)=>{
-    let title = card.querySelector("h5").innerText.toLowerCase();
-    let parentCol = card.closest(".col-md-4");
-    parentCol.style.display = title.includes(input) ? "block" : "none";
-  });
-}
-
-function filterCategory(cat){
-  document.querySelectorAll(".glass-card").forEach((card,idx)=>{
-    let parentCol = card.closest(".col-md-4");
-    if(cat==="all" || menu[idx].category===cat) parentCol.style.display="block";
-    else parentCol.style.display="none";
-  });
-}
-
-function changeQty(index,change){
-  let qtySpan = document.getElementById("qty-"+index);
-  let qty = parseInt(qtySpan.innerText) + change;
-  if(qty < 0) qty = 0;
-  qtySpan.innerText = qty;
-
-  if(change > 0){
-    addToCart(menu[index].name, menu[index].price, menu[index].prep);
-  }
 }
 
 function toggleDark(){
   document.body.classList.toggle("dark-mode");
 }
 
-// 🔁 Init
 loadMenu();
-setInterval(checkOrderStatus, 5000);

@@ -1,47 +1,46 @@
 <?php
 include(__DIR__ . "/../config/db.php");
+header('Content-Type: application/json'); // 🔹 Add JSON header
 
-$table = $_POST['table_no'];
-$items = $_POST['items'];
-$total = $_POST['total'];
-$prep_time = $_POST['prep_time'];
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+  echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+  exit;
+}
 
-$sql = "INSERT INTO orders (table_no, items, total_price, prep_time, status)
-        VALUES ($table,'$items','$total','$prep_time','Pending')";
+// 🔹 Sanitize & validate inputs
+$table = filter_input(INPUT_POST, 'table_no', FILTER_VALIDATE_INT);
+$items = trim($_POST['items'] ?? ''); // 🔹 Keep as string (your format)
+$total = filter_input(INPUT_POST, 'total', FILTER_VALIDATE_FLOAT);
+$prep_time = filter_input(INPUT_POST, 'prep_time', FILTER_VALIDATE_INT) ?? 0;
+$instructions = trim($_POST['special_instructions'] ?? ''); // 🔹 New field
 
+// 🔹 Better validation
+if (!$table || empty($items) || !$total || $total <= 0) {
+  echo json_encode(['success' => false, 'message' => 'Invalid order data']);
+  exit;
+}
 
-if($conn->query($sql)){
-    echo $conn->insert_id; // return order id
-}else{
-    echo "error";
+try {
+  // 🔹 Added special_instructions & created_at
+  $stmt = $conn->prepare("INSERT INTO orders 
+    (table_no, items, total_price, prep_time, special_instructions, status, created_at) 
+    VALUES (?, ?, ?, ?, ?, 'Pending', NOW())");
+  
+  $stmt->bind_param("isdss", $table, $items, $total, $prep_time, $instructions);
+
+  if ($stmt->execute()) {
+    // 🔹 Return JSON with order ID
+    echo json_encode([
+      'success' => true, 
+      'order_id' => $conn->insert_id,
+      'message' => 'Order placed successfully'
+    ]);
+  } else {
+    throw new Exception($stmt->error);
+  }
+} catch (Exception $e) {
+  // 🔹 Log error & return safe message
+  error_log("Order Error: " . $e->getMessage());
+  echo json_encode(['success' => false, 'message' => 'Failed to place order']);
 }
 ?>
-
-<script>
-function placeOrder(){
-  if(cart.length==0){ alert("Cart empty"); return; }
-
-  let items = cart.map(c=>c.item).join(",");
-  let total = cart.reduce((s,c)=>s+c.price,0);
-
-  let form = new FormData();
-  form.append("items",items);
-  form.append("total",total);
-
-  fetch("place_order.php",{
-    method:"POST",
-    body:form
-  })
-  .then(res=>res.text())
-  .then(msg=>{
-    if(msg=="success"){
-      alert("Order Placed Successfully 🎉");
-      cart=[];
-      document.getElementById("count").innerText=0;
-      showHome();
-    }else{
-      alert("Error");
-    }
-  });
-}
-</script>

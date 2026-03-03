@@ -271,3 +271,7 @@ img{
   cursor:pointer;
 }
 
+.bill-line{
+  font-size: 14px;
+  margin-bottom: 6px;
+}

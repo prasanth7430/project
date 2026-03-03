@@ -38,7 +38,7 @@ $todayOrders  = $conn->query("SELECT COUNT(*) as total FROM orders WHERE DATE(cr
   </div>
 
   <div class="premium-main">
-    <div class="premium-top">
+    <div class="premium-top d-flex justify-content-between align-items-center">
       <h4>📊 Owner Analytics</h4>
       <select id="range" class="form-select w-auto" onchange="loadAnalytics()">
         <option value="today">Today</option>
@@ -47,22 +47,38 @@ $todayOrders  = $conn->query("SELECT COUNT(*) as total FROM orders WHERE DATE(cr
       </select>
     </div>
 
-    <div class="stats-grid">
-      <div class="stat-box"><h4>Total Orders</h4><p><?= $totalOrders ?></p></div>
-      <div class="stat-box"><h4>Total Revenue</h4><p>₹ <?= $totalRevenue ?? 0 ?></p></div>
-      <div class="stat-box"><h4>Today Orders</h4><p><?= $todayOrders ?></p></div>
-      <div class="stat-box"><h4>Today Revenue</h4><p>₹ <?= $todayRevenue ?></p></div>
+    <!-- 📊 Stats -->
+    <div class="stats-grid mt-3">
+      <div class="stat-box">
+        <h4>Total Orders</h4>
+        <p><?= $totalOrders ?></p>
+      </div>
+      <div class="stat-box">
+        <h4>Total Revenue</h4>
+        <p>₹ <?= $totalRevenue ?? 0 ?></p>
+      </div>
+      <div class="stat-box">
+        <h4>Today Orders</h4>
+        <p><?= $todayOrders ?></p>
+      </div>
+      <div class="stat-box">
+        <h4>Today Revenue</h4>
+        <p>₹ <?= $todayRevenue ?></p>
+      </div>
     </div>
 
-    <div class="glass-card">
+    <!-- 📈 Peak Time -->
+    <div class="glass-card mt-4">
       <h5>📈 Orders by Hour (Peak Time)</h5>
       <canvas id="peakChart"></canvas>
     </div>
 
+    <!-- 🏆 Top Selling -->
     <div class="glass-card mt-4">
       <h5>🏆 Top Selling Items</h5>
       <canvas id="topItemsChart"></canvas>
     </div>
+
   </div>
 </div>
 
@@ -73,36 +89,48 @@ function loadAnalytics(){
   const range = document.getElementById("range").value;
 
   fetch("owner_analytics.php?range="+range)
-  .then(res=>res.json())
-  .then(data=>{
-    if(peakChart) peakChart.destroy();
-    if(topItemsChart) topItemsChart.destroy();
+    .then(res => res.json())
+    .then(data => {
 
-    peakChart = new Chart(document.getElementById('peakChart'),{
-      type:'bar',
-      data:{
-        labels:data.hours,
-        datasets:[{
-          label:'Orders',
-          data:data.counts,
-          borderWidth:1
-        }]
-      }
-    });
+      if(peakChart) peakChart.destroy();
+      if(topItemsChart) topItemsChart.destroy();
 
-    topItemsChart = new Chart(document.getElementById('topItemsChart'),{
-      type:'doughnut',
-      data:{
-        labels:data.top_items_labels,
-        datasets:[{
-          data:data.top_items_values
-        }]
-      }
+      peakChart = new Chart(document.getElementById('peakChart'), {
+        type: 'bar',
+        data: {
+          labels: data.hours,
+          datasets: [{
+            label: 'Orders',
+            data: data.counts,
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+
+      topItemsChart = new Chart(document.getElementById('topItemsChart'), {
+        type: 'doughnut',
+        data: {
+          labels: data.top_items_labels,
+          datasets: [{
+            data: data.top_items_values
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'bottom' }
+          }
+        }
+      });
+
     });
-  });
 }
 
-loadAnalytics();
+loadAnalytics(); // default load today
 </script>
 
 </body>
